@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="ClientPeer.cs" />
     <Compile Include="ClientPeerPool.cs" />
+    <Compile Include="EncodeTool.cs" />
     <Compile Include="ServePeer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
