@@ -41,10 +41,13 @@ namespace AsServer
                 for (int i = 0; i < maxCount; i++)
                 {
                     tmpClientPeer = new ClientPeer();
+
+                    tmpClientPeer.ReceiveArgs = new SocketAsyncEventArgs();
                     //注册接收完成的事件
-                    tmpClientPeer.ReceiveArgs.Completed += Receive_Completed;
+                    tmpClientPeer.ReceiveArgs.Completed += OnReceiveDataCompleted;
                     //等于自身
                     tmpClientPeer.ReceiveArgs.UserToken = tmpClientPeer;
+                    tmpClientPeer.ProcessReceiveDataCompleted += OnProcessReceiveDataCompleted;
                     _clientPeerPool.Enqueue(tmpClientPeer);
                 }
 
@@ -149,8 +152,29 @@ namespace AsServer
 
                 Buffer.BlockCopy(client.ReceiveArgs.Buffer,0,packet,0, client.ReceiveArgs.BytesTransferred);
 
-                //让客户端自身处理数据
+                //让客户端自身处理数据 自身解析
                 client.StartReceive(packet);
+
+                // 尾递归
+                StartReceive(client);
+            }
+            //断开连接了
+            else
+            {
+                //如果没有传输的字节数 就代表断开连接了
+                if (client.ReceiveArgs.BytesTransferred == 0)
+                {
+                    if(client.ReceiveArgs.SocketError == SocketError.Success)
+                    {
+                        //客户端主动断开连接
+                        //TODO
+                    }
+                    else
+                    {
+                        //由于网络异常 被动断开连接
+                        //TODO
+                    }
+                }
             }
          }
 
@@ -158,9 +182,21 @@ namespace AsServer
         /// 当接收完成时 触发的事件 
         /// </summary>
         /// <param name="e"></param>
-        private void Receive_Completed(object sender, SocketAsyncEventArgs e)
+        private void OnReceiveDataCompleted(object sender, SocketAsyncEventArgs e)
         {
             ProcessReceive(e);
+        }
+
+        /// <summary>
+        /// 一条数据解析完成的数据
+        /// </summary>
+        /// <param name="client">对应连接的对象</param>
+        /// <param name="value">解析出来一格具体能使用的类型</param>
+        private void OnProcessReceiveDataCompleted(ClientPeer client, Object value)
+        {
+            //给应用层 让其使用
+            //TODO 
+
         }
 
         #endregion

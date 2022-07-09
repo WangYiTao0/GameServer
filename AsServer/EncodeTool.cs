@@ -17,9 +17,9 @@ namespace AsServer
         /// <summary>
         /// 构造消息体 消息头 + 消息尾
         /// </summary>
-        /// <param name="value"></param>
+        /// <param name="data"></param>
         /// <returns></returns>
-        public static byte[] EncodePacket(byte[] value)
+        public static byte[] EncodePacket(byte[] data)
         {
             //内存流对象
             //要记得释放对象
@@ -31,9 +31,9 @@ namespace AsServer
                 using (BinaryWriter bw = new BinaryWriter(ms))
                 {
                     //先写入长度
-                    bw.Write(value.Length);
+                    bw.Write(data.Length);
                     //再写入数据
-                    bw.Write(value);
+                    bw.Write(data);
 
                     byte[] byteArray = new byte[(int)ms.Length];
 
@@ -55,7 +55,9 @@ namespace AsServer
             if(dataCache.Count < 4)
             {
                 //四个字节构成的int 长度 不能构成一格完整的消息
-                throw new Exception("数据缓存长度不足4 不能构成一格完整的消息");
+                //throw new Exception("数据缓存长度不足4 不能构成一格完整的消息");
+
+                return null;
             }
 
             using (MemoryStream ms = new MemoryStream(dataCache.ToArray()))
@@ -69,7 +71,8 @@ namespace AsServer
                     int dateRemainLength = (int)(ms.Length - ms.Position);
                     if (length > dateRemainLength)
                     {
-                        throw new Exception("数据长度不够包头约定的长度 不能构成一个完整的消息");
+                        return null;
+                        //throw new Exception("数据长度不够包头约定的长度 不能构成一个完整的消息");
                     }
                     
 

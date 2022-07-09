@@ -11,14 +11,27 @@ namespace AsServer
     {
         public Socket ClientSocket { get; set; }
 
+        #region 接收数据
+
+        public delegate void ReceiveCompleted(ClientPeer client, object value);
+        /// <summary>
+        /// 一格消息解析完成的回调
+        /// </summary>
+        public ReceiveCompleted ProcessReceiveDataCompleted;
+
         /// <summary>
         /// 数据缓存区  接收到数据后 存入
         /// </summary>
         private List<byte> dataCache = new List<byte>();
 
-        public SocketAsyncEventArgs ReceiveArgs;
+        /// <summary>
+        /// 接受的网络异步套接字请求
+        /// </summary>
+        public SocketAsyncEventArgs ReceiveArgs { get; set; }
 
-        #region 接收数据
+        private bool _isProcess = false;
+
+
 
         /// <summary>
         /// 自身处理数据包
@@ -26,7 +39,35 @@ namespace AsServer
         /// <param name="packet"></param>
         public void StartReceive(byte[] packet)
         {
+            dataCache.AddRange(packet);
+            if(!_isProcess)
+            {
+                ProcessReceiveData();
+            }
 
+        }
+
+        /// <summary>
+        /// 处理接收的数据
+        /// </summary>
+        private void ProcessReceiveData()
+        {
+            _isProcess = true;
+            //解析数据包
+            byte[] data = EncodeTool.DecodePacket(ref dataCache);
+
+            if(data == null)
+            {
+                _isProcess = false;
+                return;
+            }
+
+            //需要转成一个具体的类型 供我们使用
+            object value = data;
+            //回调给上层
+            ProcessReceiveDataCompleted?.Invoke(this, value);  
+            //尾递归
+            ProcessReceiveData();
         }
 
 
