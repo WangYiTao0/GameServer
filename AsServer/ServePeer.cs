@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AsServer
@@ -15,10 +16,12 @@ namespace AsServer
     {
         private Socket _serverSocket;
 
-        public ServePeer()
-        {
-            _serverSocket = new Socket(AddressFamily.InterNetwork,SocketType.Stream, ProtocolType.Tcp); 
-        }
+        /// <summary>
+        /// 限制客户端连接两的信号量
+        /// </summary>
+        private Semaphore _acceptSemaphore;
+
+        private ClientPeerPool _clientPeerPool;
 
         /// <summary>
         /// 用来开启服务器
@@ -29,8 +32,20 @@ namespace AsServer
         {
             try
             {
+                _serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                _acceptSemaphore = new Semaphore(maxCount, maxCount);
+
+                _clientPeerPool = new ClientPeerPool(maxCount);
+                ClientPeer tmpClientPeer = null;
+                for (int i = 0; i < maxCount; i++)
+                {
+                    tmpClientPeer = new ClientPeer();
+                    _clientPeerPool.Enqueue(tmpClientPeer);
+m                }
+
                 _serverSocket.Bind(new IPEndPoint(IPAddress.Any, port));
-                _serverSocket.Listen(maxCount);//同时等待的人数
+
+                _serverSocket.Listen(10);//同时等待的人数
 
                 Console.WriteLine("服务器启动...");
 
@@ -51,12 +66,8 @@ namespace AsServer
         /// <param name="e"></param>
         private void StartAccept(SocketAsyncEventArgs e)
         {
-            if(e == null)
-            { 
-                e = new SocketAsyncEventArgs();
-                e.Completed += Accept_Completed;
-            }
-
+            //限制线程的访问
+            _acceptSemaphore.WaitOne();
 
             // true 等待执行  false 执行完毕
             bool result = _serverSocket.AcceptAsync(e);
@@ -83,9 +94,14 @@ namespace AsServer
         private void ProcessAccept(SocketAsyncEventArgs e)
         {
             //等到客户端对象
-            Socket clientSocket = e.AcceptSocket;
+            //Socket clientSocket = e.AcceptSocket;
             //保存 
-            //TODO
+            ClientPeer client = _clientPeerPool.Dequeue();
+            client.SetSocket(e.AcceptSocket);
+            //TODO 一直接收客户端发来的处理
+
+            e.AcceptSocket = null;
+            StartAccept(e);
         }
 
         #endregion
