@@ -76,15 +76,13 @@ namespace AsServer
 
                     byte[] date = br.ReadBytes(length);
 
-                    // 保存一下缓存区
+                    // 一下缓存区
                     dataCache.Clear();
                     dataCache.AddRange(br.ReadBytes(dateRemainLength));
 
                     return date;
                 }
             }
-
-            return;
         }
 
         #endregion

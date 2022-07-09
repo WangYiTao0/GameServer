@@ -35,13 +35,18 @@ namespace AsServer
                 _serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 _acceptSemaphore = new Semaphore(maxCount, maxCount);
 
+                //直接New出 最大对象
                 _clientPeerPool = new ClientPeerPool(maxCount);
                 ClientPeer tmpClientPeer = null;
                 for (int i = 0; i < maxCount; i++)
                 {
                     tmpClientPeer = new ClientPeer();
+                    //注册接收完成的事件
+                    tmpClientPeer.ReceiveArgs.Completed += Receive_Completed;
+                    //等于自身
+                    tmpClientPeer.ReceiveArgs.UserToken = tmpClientPeer;
                     _clientPeerPool.Enqueue(tmpClientPeer);
-m                }
+                }
 
                 _serverSocket.Bind(new IPEndPoint(IPAddress.Any, port));
 
@@ -97,11 +102,65 @@ m                }
             //Socket clientSocket = e.AcceptSocket;
             //保存 
             ClientPeer client = _clientPeerPool.Dequeue();
-            client.SetSocket(e.AcceptSocket);
-            //TODO 一直接收客户端发来的处理
+            client.ClientSocket = e.AcceptSocket;
+
+            //开始接收数据
+            StartReceive(client);
 
             e.AcceptSocket = null;
             StartAccept(e);
+        }
+
+        #endregion
+
+        #region 接收数据
+        /// <summary>
+        /// 开始接收数据
+        /// </summary>
+        /// <param name="client"></param>
+        private void StartReceive(ClientPeer client)
+        {
+            try
+            {
+               bool result =  client.ClientSocket.ReceiveAsync(client.ReceiveArgs);
+                if(!result)
+                {
+                    ProcessReceive(client.ReceiveArgs);
+                }
+            }
+            catch (Exception e)
+            {
+
+                Console.WriteLine(e.Message);
+            }
+        }
+
+        /// <summary>
+        /// 处理接收的请求
+        /// </summary>
+        /// <param name="e"></param>
+        private void ProcessReceive(SocketAsyncEventArgs e)
+        {
+            ClientPeer client = e.UserToken as ClientPeer;
+            //判断网络消息是否接收成功 && 传输的字节数有值
+            if(client.ReceiveArgs.SocketError == SocketError.Success && client.ReceiveArgs.BytesTransferred > 0)
+            {
+                byte[] packet = new byte[client.ReceiveArgs.BytesTransferred];
+
+                Buffer.BlockCopy(client.ReceiveArgs.Buffer,0,packet,0, client.ReceiveArgs.BytesTransferred);
+
+                //让客户端自身处理数据
+                client.StartReceive(packet);
+            }
+         }
+
+        /// <summary>
+        /// 当接收完成时 触发的事件 
+        /// </summary>
+        /// <param name="e"></param>
+        private void Receive_Completed(object sender, SocketAsyncEventArgs e)
+        {
+            ProcessReceive(e);
         }
 
         #endregion
@@ -110,9 +169,6 @@ m                }
         #endregion
 
         #region 断开连接
-        #endregion
-
-        #region 接收数据
         #endregion
     }
 }
