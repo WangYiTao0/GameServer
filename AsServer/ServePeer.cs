@@ -41,12 +41,8 @@ namespace AsServer
                 for (int i = 0; i < maxCount; i++)
                 {
                     tmpClientPeer = new ClientPeer();
-
-                    tmpClientPeer.ReceiveArgs = new SocketAsyncEventArgs();
                     //注册接收完成的事件
                     tmpClientPeer.ReceiveArgs.Completed += OnReceiveDataCompleted;
-                    //等于自身
-                    tmpClientPeer.ReceiveArgs.UserToken = tmpClientPeer;
                     tmpClientPeer.ProcessReceiveDataCompleted += OnProcessReceiveDataCompleted;
                     _clientPeerPool.Enqueue(tmpClientPeer);
                 }
@@ -86,11 +82,11 @@ namespace AsServer
             }
             else
             {
-                e.Completed += Accept_Completed;
+                e.Completed += OnAcceptCompleted;
             }
         }
 
-        private void Accept_Completed(object sender, SocketAsyncEventArgs e)
+        private void OnAcceptCompleted(object sender, SocketAsyncEventArgs e)
         {
             ProcessAccept(e);
         }
@@ -192,7 +188,7 @@ namespace AsServer
         /// </summary>
         /// <param name="client">对应连接的对象</param>
         /// <param name="value">解析出来一格具体能使用的类型</param>
-        private void OnProcessReceiveDataCompleted(ClientPeer client, Object value)
+        private void OnProcessReceiveDataCompleted(ClientPeer client, SocketMsg value)
         {
             //给应用层 让其使用
             //TODO 
@@ -202,6 +198,35 @@ namespace AsServer
         #endregion
 
         #region 发送数据
+
+        /// <summary>
+        /// 断开连接
+        /// </summary>
+        /// <param name="client">断开的客户端连接对象</param>
+        /// <param name="reason">断开的原因</param>
+        public void Disconnect(ClientPeer client, string reason)
+        {
+            try
+            {
+                //清空一些数据
+                if(client == null)
+                {
+                    throw new Exception("当前指定的客户端对象为空，无法断开连接");
+                }
+
+                //TODO 通知应用层断开连接了
+                client.Disconnect();
+                //回收对象 方便下次使用
+                _clientPeerPool.Enqueue(client);
+                _acceptSemaphore.Release();
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
+
         #endregion
 
         #region 断开连接

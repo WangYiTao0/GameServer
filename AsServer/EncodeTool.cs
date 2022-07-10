@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -85,6 +86,101 @@ namespace AsServer
 
                     return date;
                 }
+            }
+        }
+
+        #endregion
+
+        #region 构造发送的 SoccketMsg类
+        /// <summary>
+        /// 把SocketMsg 类转换成字节数组 发送出去
+        /// </summary>
+        /// <param name="msg"></param>
+        /// <returns></returns>
+        public static byte[] EncodeMsg(SocketMsg msg)
+        {
+            MemoryStream ms = new MemoryStream();   
+            BinaryWriter bw = new  BinaryWriter(ms);
+            bw.Write(msg.OpCode);
+            bw.Write(msg.SubCode);
+            //如果不等于 null 才需要把object 转换成字节数据 存起来
+            if(msg.Value != null)
+            {
+                byte[] valueBytes = EncodeObj(msg.Value);
+
+                bw.Write(valueBytes);
+            }
+
+            byte[] data = new byte[ms.Length];
+            Buffer.BlockCopy(ms.GetBuffer(), 0, data, 0, (int)ms.Length);
+            bw.Close();
+            ms.Close();
+            return data;
+        }
+
+        /// <summary>
+        /// 将收到的字节数组 转换成SocketMessage 对象 供应用层使用
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static SocketMsg DecodeMsg(byte[] data)
+        {
+            MemoryStream ms = new MemoryStream(data);
+            BinaryReader br = new BinaryReader(ms);
+
+            SocketMsg msg = new SocketMsg();
+            msg.OpCode = br.ReadInt32();
+            msg.SubCode = br.ReadInt32();
+
+            //还有个剩余的字节 代表value 有值
+            if(ms.Length > ms.Position)
+            {
+                byte[] valueBates = br.ReadBytes((int)(ms.Length - ms.Position));
+                object value = DecodeMsg(valueBates);
+                msg.Value = value;
+            }
+            br.Close();
+            ms.Close();
+            return msg;
+        }
+
+        #endregion
+
+        #region 把一个object类型转换成byte[]
+
+        /// <summary>
+        /// 序列化 object对象
+        /// obj -> byte[]
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static byte[] EncodeObj(object value)
+        {
+            using(MemoryStream ms = new MemoryStream())
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                bf.Serialize(ms, value);
+
+                byte[] valueBytes = new byte[ms.Length];
+                Buffer.BlockCopy(ms.GetBuffer(), 0, valueBytes, 0, (int)ms.Length);
+
+                return valueBytes;
+            }
+        }
+
+        /// <summary>
+        /// 反序列化对象
+        /// byte[] -> obj
+        /// </summary>
+        /// <param name="valueByte"></param>
+        /// <returns></returns>
+        public static object DecodeObj(byte[] valueByte)
+        {
+            using (MemoryStream ms = new MemoryStream(valueByte))
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                object value = bf.Deserialize(ms);
+                return value;
             }
         }
 

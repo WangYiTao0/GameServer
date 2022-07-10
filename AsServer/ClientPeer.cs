@@ -11,9 +11,16 @@ namespace AsServer
     {
         public Socket ClientSocket { get; set; }
 
+        public ClientPeer()
+        {
+            ReceiveArgs = new SocketAsyncEventArgs();
+            ReceiveArgs.UserToken = this;
+        }
+
+
         #region 接收数据
 
-        public delegate void ReceiveCompleted(ClientPeer client, object value);
+        public delegate void ReceiveCompleted(ClientPeer client, SocketMsg value);
         /// <summary>
         /// 一格消息解析完成的回调
         /// </summary>
@@ -22,7 +29,7 @@ namespace AsServer
         /// <summary>
         /// 数据缓存区  接收到数据后 存入
         /// </summary>
-        private List<byte> dataCache = new List<byte>();
+        private List<byte> _dataCache = new List<byte>();
 
         /// <summary>
         /// 接受的网络异步套接字请求
@@ -39,7 +46,7 @@ namespace AsServer
         /// <param name="packet"></param>
         public void StartReceive(byte[] packet)
         {
-            dataCache.AddRange(packet);
+            _dataCache.AddRange(packet);
             if(!_isProcess)
             {
                 ProcessReceiveData();
@@ -54,7 +61,7 @@ namespace AsServer
         {
             _isProcess = true;
             //解析数据包
-            byte[] data = EncodeTool.DecodePacket(ref dataCache);
+            byte[] data = EncodeTool.DecodePacket(ref _dataCache);
 
             if(data == null)
             {
@@ -62,10 +69,10 @@ namespace AsServer
                 return;
             }
 
-            //需要转成一个具体的类型 供我们使用
-            object value = data;
+            //TODO 需要转成一个具体的类型 供我们使用
+            SocketMsg msg = EncodeTool.DecodeMsg(data);
             //回调给上层
-            ProcessReceiveDataCompleted?.Invoke(this, value);  
+            ProcessReceiveDataCompleted?.Invoke(this, msg);  
             //尾递归
             ProcessReceiveData();
         }
@@ -88,6 +95,24 @@ namespace AsServer
 
 
         //}
+        #endregion
+
+        #region 断开连接
+
+        /// <summary>
+        /// 断开连接
+        /// </summary>
+        public void Disconnect()
+        {
+            //清空数据
+            _dataCache.Clear();
+            _isProcess= false;
+            //TODO 给发送数据预留
+
+            ClientSocket.Shutdown(SocketShutdown.Both);
+            ClientSocket.Close();
+            ClientSocket = null;
+        }
         #endregion
     }
 }
