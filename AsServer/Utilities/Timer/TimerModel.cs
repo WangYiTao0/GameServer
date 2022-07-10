@@ -23,7 +23,7 @@ namespace AsServer.Utilities.Timer
         private TimerDelegate _timeDelegate;
         public TimerModel(int id, long time, TimerDelegate td)
         {
-            _id = id;
+            Id = id;
             Time = time;
             _timeDelegate= td;   
         }
