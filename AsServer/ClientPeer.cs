@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace AsServer
 {
-    internal class ClientPeer
+    public class ClientPeer
     {
         public Socket ClientSocket { get; set; }
 
@@ -15,7 +15,11 @@ namespace AsServer
         {
             ReceiveArgs = new SocketAsyncEventArgs();
             ReceiveArgs.UserToken = this;
+            SendArgs = new SocketAsyncEventArgs();
+            SendArgs.Completed += OnSendArgsCompleted;
         }
+
+
 
 
         #region 接收数据
@@ -36,7 +40,7 @@ namespace AsServer
         /// </summary>
         public SocketAsyncEventArgs ReceiveArgs { get; set; }
 
-        private bool _isProcess = false;
+        private bool _isReceiveProcess = false;
 
 
 
@@ -47,7 +51,7 @@ namespace AsServer
         public void StartReceive(byte[] packet)
         {
             _dataCache.AddRange(packet);
-            if(!_isProcess)
+            if(!_isReceiveProcess)
             {
                 ProcessReceiveData();
             }
@@ -59,13 +63,13 @@ namespace AsServer
         /// </summary>
         private void ProcessReceiveData()
         {
-            _isProcess = true;
+            _isReceiveProcess = true;
             //解析数据包
             byte[] data = EncodeTool.DecodePacket(ref _dataCache);
 
             if(data == null)
             {
-                _isProcess = false;
+                _isReceiveProcess = false;
                 return;
             }
 
@@ -97,6 +101,86 @@ namespace AsServer
         //}
         #endregion
 
+
+        #region 发送数据
+
+        private Queue<byte[]> _sendQueue = new Queue<byte[]>();
+        private bool _isSendProcess;
+        /// <summary>
+        /// 发送的异步套接字操作
+        /// </summary>
+        private SocketAsyncEventArgs SendArgs;
+
+        /// <summary>
+        /// 发送时断开连接的回调
+        /// </summary>
+        /// <param name="client"></param>
+        /// <param name="reason"></param>
+        public delegate void SendDisconnect(ClientPeer client, string reason);
+        public SendDisconnect sendDisConnect;
+
+        /// <summary>
+        /// 发送网络消息
+        /// </summary>
+        /// <param name="opCode">操作码</param>
+        /// <param name="subCode">子操作</param>
+        /// <param name="value">参数</param>
+        public void Send(int opCode, int subCode, object value)
+        {
+            SocketMsg msg = new SocketMsg(opCode, subCode, value);
+            byte[] data = EncodeTool.EncodeMsg(msg);
+            byte[] packet = EncodeTool.EncodePacket(data);
+
+            _sendQueue.Enqueue(packet);
+            if(!_isSendProcess)
+                Send();
+
+        }
+
+        private void Send()
+        {
+            _isSendProcess = true;
+            //如果数据的条数等于0的话 就停止发送
+            if(_sendQueue.Count == 0)
+            {
+                _isSendProcess=false;
+                return;
+            }
+
+            byte[] packet = _sendQueue.Dequeue();
+            //设置消息发送异步对象的发送数据缓冲区
+            SendArgs.SetBuffer(packet,0, packet.Length);
+            //取出一条数据
+            bool result = ClientSocket.SendAsync(SendArgs);
+            if(!result)
+            {
+                ProcessSend();
+            }
+        }
+
+        private void OnSendArgsCompleted(object sender, SocketAsyncEventArgs e)
+        {
+            ProcessSend();
+        }
+
+        /// <summary>
+        /// 当异步发送请求完成时调用
+        /// </summary>
+        private void ProcessSend()
+        {
+            //发送有没有错误
+            if(SendArgs.SocketError != SocketError.Success)
+            {
+                //发送 出错了 客户端断开连接
+                sendDisConnect(this, SendArgs.SocketError.ToString());
+            }
+            else
+            {
+                Send();
+            }
+        }
+        #endregion
+
         #region 断开连接
 
         /// <summary>
@@ -106,7 +190,7 @@ namespace AsServer
         {
             //清空数据
             _dataCache.Clear();
-            _isProcess= false;
+            _isReceiveProcess= false;
             //TODO 给发送数据预留
 
             ClientSocket.Shutdown(SocketShutdown.Both);

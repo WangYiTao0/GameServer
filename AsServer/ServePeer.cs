@@ -41,9 +41,13 @@ namespace AsServer
                 for (int i = 0; i < maxCount; i++)
                 {
                     tmpClientPeer = new ClientPeer();
+                    //注册事件
                     //注册接收完成的事件
                     tmpClientPeer.ReceiveArgs.Completed += OnReceiveDataCompleted;
-                    tmpClientPeer.ProcessReceiveDataCompleted += OnProcessReceiveDataCompleted;
+                    //注册处理收到的数据完成时
+                    tmpClientPeer.ProcessReceiveDataCompleted = OnProcessReceiveDataCompleted;
+                    //处理发送时断开连接
+                    tmpClientPeer.sendDisConnect = Disconnect;
                     _clientPeerPool.Enqueue(tmpClientPeer);
                 }
 
@@ -61,7 +65,6 @@ namespace AsServer
                 Console.WriteLine(e.Message);
             }
         }
-
 
         #region 接收客户端的连接
         /// <summary>
@@ -163,12 +166,12 @@ namespace AsServer
                     if(client.ReceiveArgs.SocketError == SocketError.Success)
                     {
                         //客户端主动断开连接
-                        //TODO
+                        Disconnect(client, "客户端主动断开连接");
                     }
                     else
                     {
                         //由于网络异常 被动断开连接
-                        //TODO
+                        Disconnect(client, client.ReceiveArgs.SocketError.ToString());
                     }
                 }
             }
@@ -229,7 +232,5 @@ namespace AsServer
 
         #endregion
 
-        #region 断开连接
-        #endregion
     }
 }
