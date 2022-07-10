@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AsServer.Utilities.Concurrent;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -46,11 +47,11 @@ namespace AsServer.Utilities.Timer
         /// <summary>
         /// 用来表示id
         /// </summary>
-        private int _id = 0;
+        private ConcurrentInt _id = new ConcurrentInt(-1);
 
         public TimerManager()
         {
-            timer = new System.Timers.Timer(1000);
+            timer = new System.Timers.Timer(10);
             timer.Elapsed += OnTimerElapsed;
         }
 
@@ -101,7 +102,7 @@ namespace AsServer.Utilities.Timer
         /// <param name="timerDelegate"></param>
         public void AddTimeEvent(long delayTime, TimerDelegate timerDelegate)
         {
-            TimerModel model = new TimerModel(_id++, DateTime.Now.Ticks+ delayTime, timerDelegate);
+            TimerModel model = new TimerModel(_id.Add_Get(), DateTime.Now.Ticks+ delayTime, timerDelegate);
             _idModelDict.TryAdd(model.Id, model);
 
 
