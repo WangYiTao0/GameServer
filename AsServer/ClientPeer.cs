@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace AsServer
 {
+    /// <summary>
+    /// 服务端
+    /// </summary>
     public class ClientPeer
     {
         public Socket ClientSocket { get; set; }
@@ -73,7 +76,7 @@ namespace AsServer
                 return;
             }
 
-            //TODO 需要转成一个具体的类型 供我们使用
+            //需要转成一个具体的类型 供我们使用
             SocketMsg msg = EncodeTool.DecodeMsg(data);
             //回调给上层
             ProcessReceiveDataCompleted?.Invoke(this, msg);  
@@ -191,12 +194,15 @@ namespace AsServer
             //清空数据
             _dataCache.Clear();
             _isReceiveProcess= false;
-            //TODO 给发送数据预留
+            _sendQueue.Clear();
+            _isSendProcess = false;
 
             ClientSocket.Shutdown(SocketShutdown.Both);
             ClientSocket.Close();
             ClientSocket = null;
         }
         #endregion
+
+
     }
 }

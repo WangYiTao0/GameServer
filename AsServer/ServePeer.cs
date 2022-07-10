@@ -24,6 +24,17 @@ namespace AsServer
         private ClientPeerPool _clientPeerPool;
 
         /// <summary>
+        /// 应用层
+        /// </summary>
+        private IApplication _application;
+
+        public void SetApplication(IApplication app)
+        {
+            _application = app;
+        }
+
+
+        /// <summary>
         /// 用来开启服务器
         /// </summary>
         /// <param name="port">端口号</param>
@@ -32,6 +43,7 @@ namespace AsServer
         {
             try
             {
+                //IPv4 流传输 TCP
                 _serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 _acceptSemaphore = new Semaphore(maxCount, maxCount);
 
@@ -55,7 +67,7 @@ namespace AsServer
 
                 _serverSocket.Listen(10);//同时等待的人数
 
-                Console.WriteLine("服务器启动...");
+                Console.WriteLine("Server Start-up...");
 
                 StartAccept(null);
             }
@@ -73,9 +85,11 @@ namespace AsServer
         /// <param name="e"></param>
         private void StartAccept(SocketAsyncEventArgs e)
         {
-            //限制线程的访问
-            _acceptSemaphore.WaitOne();
-
+            if(e == null)
+            {
+                e = new SocketAsyncEventArgs();
+                e.Completed += OnAcceptCompleted;
+            }
             // true 等待执行  false 执行完毕
             bool result = _serverSocket.AcceptAsync(e);
 
@@ -83,10 +97,10 @@ namespace AsServer
             {
                 ProcessAccept(e);
             }
-            else
-            {
-                e.Completed += OnAcceptCompleted;
-            }
+            //else
+            //{
+            //    e.Completed += OnAcceptCompleted;
+            //}
         }
 
         private void OnAcceptCompleted(object sender, SocketAsyncEventArgs e)
@@ -100,11 +114,14 @@ namespace AsServer
         /// <param name="e"></param>
         private void ProcessAccept(SocketAsyncEventArgs e)
         {
+            //限制线程的访问
+            _acceptSemaphore.WaitOne();
             //等到客户端对象
             //Socket clientSocket = e.AcceptSocket;
             //保存 
             ClientPeer client = _clientPeerPool.Dequeue();
             client.ClientSocket = e.AcceptSocket;
+
 
             //开始接收数据
             StartReceive(client);
@@ -147,6 +164,7 @@ namespace AsServer
             //判断网络消息是否接收成功 && 传输的字节数有值
             if(client.ReceiveArgs.SocketError == SocketError.Success && client.ReceiveArgs.BytesTransferred > 0)
             {
+                //拷贝数据到数组
                 byte[] packet = new byte[client.ReceiveArgs.BytesTransferred];
 
                 Buffer.BlockCopy(client.ReceiveArgs.Buffer,0,packet,0, client.ReceiveArgs.BytesTransferred);
@@ -191,10 +209,10 @@ namespace AsServer
         /// </summary>
         /// <param name="client">对应连接的对象</param>
         /// <param name="value">解析出来一格具体能使用的类型</param>
-        private void OnProcessReceiveDataCompleted(ClientPeer client, SocketMsg value)
+        private void OnProcessReceiveDataCompleted(ClientPeer client, SocketMsg msg)
         {
             //给应用层 让其使用
-            //TODO 
+            _application.OnReceive(client, msg);
 
         }
 
@@ -217,7 +235,8 @@ namespace AsServer
                     throw new Exception("当前指定的客户端对象为空，无法断开连接");
                 }
 
-                //TODO 通知应用层断开连接了
+                //通知应用层断开连接了
+                _application.OnDisconnect(client);
                 client.Disconnect();
                 //回收对象 方便下次使用
                 _clientPeerPool.Enqueue(client);
