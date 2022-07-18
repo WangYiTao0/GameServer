@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -9,12 +9,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AsServer\AsServer.csproj" />
-    <ProjectReference Include="..\Protocol\Protocol.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Model\" />
-    <Folder Include="Cache\" />
   </ItemGroup>
 
 </Project>

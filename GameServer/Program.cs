@@ -1,4 +1,5 @@
-﻿using AsServer;
+﻿using System.Globalization;
+using AsServer;
 
 namespace GameServer
 {
@@ -6,9 +7,9 @@ namespace GameServer
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello, World!");
-
             ServePeer server = new ServePeer();
+            //指定应用层
+            server.SetApplication(new NetMsgCenter());
             server.Start(6666, 10);
 
             Console.ReadKey();     

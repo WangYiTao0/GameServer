@@ -122,6 +122,7 @@ namespace AsServer
             ClientPeer client = _clientPeerPool.Dequeue();
             client.ClientSocket = e.AcceptSocket;
 
+            Console.WriteLine("客户端链接成功 : " + client.ClientSocket.RemoteEndPoint.ToString());
 
             //开始接收数据
             StartReceive(client);
@@ -234,6 +235,8 @@ namespace AsServer
                 {
                     throw new Exception("当前指定的客户端对象为空，无法断开连接");
                 }
+
+                Console.WriteLine(client.ClientSocket.RemoteEndPoint.ToString() + "客户端断开连接原因: " + reason);
 
                 //通知应用层断开连接了
                 _application.OnDisconnect(client);

@@ -18,11 +18,10 @@ namespace AsServer
         {
             ReceiveArgs = new SocketAsyncEventArgs();
             ReceiveArgs.UserToken = this;
+            ReceiveArgs.SetBuffer(new byte[1024], 0, 1024);
             SendArgs = new SocketAsyncEventArgs();
             SendArgs.Completed += OnSendArgsCompleted;
         }
-
-
 
 
         #region 接收数据
@@ -103,7 +102,6 @@ namespace AsServer
 
         //}
         #endregion
-
 
         #region 发送数据
 

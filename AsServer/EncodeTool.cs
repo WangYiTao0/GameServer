@@ -136,7 +136,7 @@ namespace AsServer
             if(ms.Length > ms.Position)
             {
                 byte[] valueBates = br.ReadBytes((int)(ms.Length - ms.Position));
-                object value = DecodeMsg(valueBates);
+                object value = DecodeObj(valueBates);
                 msg.Value = value;
             }
             br.Close();
